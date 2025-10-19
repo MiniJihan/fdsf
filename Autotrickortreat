@@ -1,0 +1,407 @@
+local plr = game:GetService("Players").LocalPlayer
+local tween_s = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local info = TweenInfo.new(5, Enum.EasingStyle.Quad)
+
+function equipCandyBucket()
+    local candyBucket = plr.Backpack:FindFirstChild("Candy Bucket")
+    
+    if candyBucket then
+        local character = plr.Character
+        if character then
+            candyBucket.Parent = character
+            return true
+        end
+    else
+        return false
+    end
+end
+
+function pressI()
+    local VirtualInputManager = game:GetService('VirtualInputManager')
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.I, false, game)
+    wait(2)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.I, false, game)
+end
+
+function rotateCamera(lookAtX, lookAtY, lookAtZ)
+    local camera = workspace.CurrentCamera
+    if not camera then return false end
+    
+    local lookAtPos = Vector3.new(lookAtX, lookAtY, lookAtZ)
+    local character = plr.Character
+    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoidRootPart then return false end
+    
+    local characterPos = humanoidRootPart.Position
+    local direction = (lookAtPos - characterPos).Unit
+    
+    local cameraCFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + direction * 10)
+    
+    local success, errorMsg = pcall(function()
+        local tween = tween_s:Create(camera, TweenInfo.new(1.5, Enum.EasingStyle.Quad), {CFrame = cameraCFrame})
+        tween:Play()
+        wait(1.5)
+    end)
+    
+    if not success then
+        return false
+    end
+    
+    return true
+end
+
+function tp(x, y, z, lookAtX, lookAtY, lookAtZ)
+    if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+    
+    local targetPos = Vector3.new(x, y, z)
+    local lookAtPos = Vector3.new(lookAtX or x + 10, lookAtY or y, lookAtZ or z)
+    local cframe = CFrame.new(targetPos, lookAtPos)
+    
+    local success, errorMsg = pcall(function()
+        local tween = tween_s:Create(plr.Character.HumanoidRootPart, info, {CFrame = cframe})
+        tween:Play()
+        tween.Completed:Wait()
+    end)
+    
+    if not success then
+        return false
+    end
+    
+    wait(0.5)
+    rotateCamera(lookAtX, lookAtY, lookAtZ)
+    
+    return true
+end
+
+function pressE()
+    local character = plr.Character
+    if not character then return false end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return false end
+    
+    local success = pcall(function()
+        local VirtualInputManager = game:GetService('VirtualInputManager')
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+    end)
+    
+    if not success then
+        pcall(function()
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+            wait(0.1)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+        end)
+    end
+    
+    return true
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local UICorner = Instance.new("UICorner")
+local TitleBar = Instance.new("Frame")
+local TitleCorner = Instance.new("UICorner")
+local Title = Instance.new("TextLabel")
+local CloseButton = Instance.new("TextButton")
+local ContentFrame = Instance.new("Frame")
+local ToggleButton = Instance.new("TextButton")
+local ToggleCorner = Instance.new("UICorner")
+local StatusLabel = Instance.new("TextLabel")
+local CurrentLocationLabel = Instance.new("TextLabel")
+local ProgressLabel = Instance.new("TextLabel")
+local TimerLabel = Instance.new("TextLabel")
+
+ScreenGui.Name = "TeleportGUI"
+ScreenGui.Parent = plr:WaitForChild("PlayerGui")MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.02, 0, 0.02, 0)
+MainFrame.Size = UDim2.new(0, 220, 0, 200)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+UICorner.CornerRadius = UDim.new(0, 15)
+UICorner.Parent = MainFrame
+
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+TitleBar.BorderSizePixel = 0
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.ZIndex = 2
+TitleBar.Active = false
+TitleBar.Draggable = false
+
+TitleCorner.CornerRadius = UDim.new(0, 15)
+TitleCorner.Parent = TitleBar
+
+Title.Name = "Title"
+Title.Parent = TitleBar
+Title.BackgroundTransparency = 1
+Title.BorderSizePixel = 0
+Title.Size = UDim2.new(0.7, 0, 1, 0)
+Title.Position = UDim2.new(0.05, 0, 0, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "Auto Teleport"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = TitleBar
+CloseButton.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+CloseButton.BorderSizePixel = 0
+CloseButton.Position = UDim2.new(0.85, 0, 0.15, 0)
+CloseButton.Size = UDim2.new(0, 20, 0, 20)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 12
+CloseButton.ZIndex = 3
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 5)
+CloseCorner.Parent = CloseButton
+
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Parent = MainFrame
+ContentFrame.Position = UDim2.new(0, 0, 0, 35)
+ContentFrame.Size = UDim2.new(1, 0, 1, -35)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Active = true
+ContentFrame.Draggable = false
+
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Parent = ContentFrame
+ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Position = UDim2.new(0.1, 0, 0.05, 0)
+ToggleButton.Size = UDim2.new(0.8, 0, 0, 40)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "START"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 16
+ToggleButton.AutoButtonColor = true
+
+ToggleCorner.CornerRadius = UDim.new(0, 8)
+ToggleCorner.Parent = ToggleButton
+
+StatusLabel.Name = "StatusLabel"
+StatusLabel.Parent = ContentFrame
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0.1, 0, 0.35, 0)
+StatusLabel.Size = UDim2.new(0.8, 0, 0, 20)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "Status: Waiting"
+StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusLabel.TextSize = 12
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+CurrentLocationLabel.Name = "CurrentLocationLabel"
+CurrentLocationLabel.Parent = ContentFrame
+CurrentLocationLabel.BackgroundTransparency = 1
+CurrentLocationLabel.Position = UDim2.new(0.1, 0, 0.5, 0)
+CurrentLocationLabel.Size = UDim2.new(0.8, 0, 0, 20)
+CurrentLocationLabel.Font = Enum.Font.Gotham
+CurrentLocationLabel.Text = "Location: ---"
+CurrentLocationLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+CurrentLocationLabel.TextSize = 12
+CurrentLocationLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+ProgressLabel.Name = "ProgressLabel"
+ProgressLabel.Parent = ContentFrame
+ProgressLabel.BackgroundTransparency = 1
+ProgressLabel.Position = UDim2.new(0.1, 0, 0.65, 0)
+ProgressLabel.Size = UDim2.new(0.8, 0, 0, 20)
+ProgressLabel.Font = Enum.Font.Gotham
+ProgressLabel.Text = "Progress: 0/10"
+ProgressLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+ProgressLabel.TextSize = 12
+ProgressLabel.TextXAlignment = Enum.TextXAlignment.LeftTimerLabel.Name = "TimerLabel"
+TimerLabel.Parent = ContentFrame
+TimerLabel.BackgroundTransparency = 1
+TimerLabel.Position = UDim2.new(0.1, 0, 0.8, 0)
+TimerLabel.Size = UDim2.new(0.8, 0, 0, 20)
+TimerLabel.Font = Enum.Font.Gotham
+TimerLabel.Text = "Wait: 0s"
+TimerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+TimerLabel.TextSize = 12
+TimerLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local locations = {
+    ["001"] = {
+        pos = Vector3.new(296.316803, 159.072876, -11522.4131),
+        lookAt = Vector3.new(300, 155, -11520)
+    },
+    ["067"] = {
+        pos = Vector3.new(295.025452, 165.388184, -11722.3301),
+        lookAt = Vector3.new(305, 165, -11720)
+    },
+    ["121"] = {
+        pos = Vector3.new(-26.0332146, 191.472733, -11693.6689),
+        lookAt = Vector3.new(-26, 191, -11693)
+    },
+    ["196"] = {
+        pos = Vector3.new(175.701904, 164.136642, -11447.8867),
+        lookAt = Vector3.new(172, 164, -11447)
+    },
+    ["236"] = {
+        pos = Vector3.new(140.66275, 144.121475, -11595.6582),
+        lookAt = Vector3.new(139, 144, -11598)
+    },
+    ["448"] = {
+        pos = Vector3.new(230.88028, 143.14624, -11464.6211),
+        lookAt = Vector3.new(240, 145, -11460)
+    },
+    ["510"] = {
+        pos = Vector3.new(125.347725, 146.448792, -11497.8359),
+        lookAt = Vector3.new(130, 146, -11490)
+    },
+    ["666"] = {
+        pos = Vector3.new(-12.9422302, 146.029175, -11462.0928),
+        lookAt = Vector3.new(-5, 148, -11455)
+    },
+    ["777"] = {
+        pos = Vector3.new(262.181244, 163.790955, -11566.8945),
+        lookAt = Vector3.new(270, 163, -115690)
+    },
+    ["974"] = {
+        pos = Vector3.new(202.607376, 145.277557, -11584.8613),
+        lookAt = Vector3.new(210, 145, -11580)
+    }
+}
+
+local isRunning = false
+local currentIndex = 1
+local locationNames = {"001", "067", "121", "196", "236", "448", "510", "666", "777", "974"}
+
+function updateTimer(seconds)
+    for i = seconds, 1, -1 do
+        if not isRunning then break end
+        TimerLabel.Text = "Wait: " .. i .. "s"
+        wait(1)
+    end
+    if isRunning then
+        TimerLabel.Text = "Wait: 0s"
+    end
+endfunction startAutoTeleport()
+    if isRunning then return end
+    
+    isRunning = true
+    ToggleButton.Text = "STOP"
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+    
+    equipCandyBucket()
+    pressI()
+    
+    coroutine.wrap(function()
+        for i = currentIndex, #locationNames do
+            if not isRunning then break end
+            
+            local locationName = locationNames[i]
+            local locationData = locations[locationName]
+            
+            CurrentLocationLabel.Text = "Location: " .. locationName
+            ProgressLabel.Text = "Progress: " .. i .. "/" .. #locationNames
+            StatusLabel.Text = "Status: Teleporting..."
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 193, 7)
+            TimerLabel.Text = "Wait: 0s"
+            
+            local success = tp(
+                locationData.pos.X, 
+                locationData.pos.Y, 
+                locationData.pos.Z, 
+                locationData.lookAt.X, 
+                locationData.lookAt.Y, 
+                locationData.lookAt.Z
+            )
+            
+            if success and isRunning then
+                wait(1)
+                
+                StatusLabel.Text = "Status: Pressing E..."
+                StatusLabel.TextColor3 = Color3.fromRGB(144, 238, 144)
+                pressE()
+                
+                StatusLabel.Text = "Status: Waiting 13s..."
+                StatusLabel.TextColor3 = Color3.fromRGB(255, 193, 7)
+                updateTimer(13)
+                
+                currentIndex = i + 1
+            end
+            
+            if not isRunning then break end
+        end
+        
+        if isRunning then
+            StatusLabel.Text = "Status: Completed!"
+            StatusLabel.TextColor3 = Color3.fromRGB(144, 238, 144)
+            CurrentLocationLabel.Text = "Location: ---"
+            ProgressLabel.Text = "Progress: 0/10"
+            TimerLabel.Text = "Wait: 0s"
+            ToggleButton.Text = "START"
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+            isRunning = false
+            currentIndex = 1
+        end
+    end)()
+end
+
+function stopAutoTeleport()
+    isRunning = false
+    ToggleButton.Text = "START"
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    StatusLabel.Text = "Status: Stopped"
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    TimerLabel.Text = "Wait: 0s"
+end
+
+ToggleButton.MouseButton1Click:Connect(function()
+    if isRunning then
+        stopAutoTeleport()
+    else
+        startAutoTeleport()
+    end
+end)
+
+ToggleButton.MouseEnter:Connect(function()
+    if not isRunning then
+        game:GetService("TweenService"):Create(ToggleButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(80, 80, 100)}):Play()
+    end
+end)
+
+ToggleButton.MouseLeave:Connect(function()
+    if not isRunning then
+        game:GetService("TweenService"):Create(ToggleButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 80)}):Play()
+    end
+end)
+
+CloseButton.MouseEnter:Connect(function()
+    game:GetService("TweenService"):Create(CloseButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(240, 70, 80)}):Play()
+end)
+
+CloseButton.MouseLeave:Connect(function()
+    game:GetService("TweenService"):Create(CloseButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(220, 53, 69)}):Play()
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    stopAutoTeleport()
+    ScreenGui:Destroy()
+end)
+
+TitleBar.Active = false
+TitleBar.Draggable = false
+ContentFrame.Active = false
+ContentFrame.Draggable = false
+
+MainFrame.Active = true
+MainFrame.Draggable = true
