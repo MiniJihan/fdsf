@@ -25,6 +25,31 @@ function pressI()
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.I, false, game)
 end
 
+function pressE()
+    local character = plr.Character
+    if not character then return false end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return false end
+    
+    local success = pcall(function()
+        local VirtualInputManager = game:GetService('VirtualInputManager')
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+    end)
+    
+    if not success then
+        pcall(function()
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+            wait(0.1)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+        end)
+    end
+    
+    return true
+end
+
 function rotateCamera(lookAtX, lookAtY, lookAtZ)
     local camera = workspace.CurrentCamera
     if not camera then return false end
@@ -78,31 +103,6 @@ function tp(x, y, z, lookAtX, lookAtY, lookAtZ)
     return true
 end
 
-function pressE()
-    local character = plr.Character
-    if not character then return false end
-    
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return false end
-    
-    local success = pcall(function()
-        local VirtualInputManager = game:GetService('VirtualInputManager')
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        wait(0.1)
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-    end)
-    
-    if not success then
-        pcall(function()
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
-            wait(0.1)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
-        end)
-    end
-    
-    return true
-end
-
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local UICorner = Instance.new("UICorner")
@@ -119,7 +119,9 @@ local ProgressLabel = Instance.new("TextLabel")
 local TimerLabel = Instance.new("TextLabel")
 
 ScreenGui.Name = "TeleportGUI"
-ScreenGui.Parent = plr:WaitForChild("PlayerGui")MainFrame.Name = "MainFrame"
+ScreenGui.Parent = plr:WaitForChild("PlayerGui")
+
+MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
@@ -226,7 +228,9 @@ ProgressLabel.Font = Enum.Font.Gotham
 ProgressLabel.Text = "Progress: 0/10"
 ProgressLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 ProgressLabel.TextSize = 12
-ProgressLabel.TextXAlignment = Enum.TextXAlignment.LeftTimerLabel.Name = "TimerLabel"
+ProgressLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+TimerLabel.Name = "TimerLabel"
 TimerLabel.Parent = ContentFrame
 TimerLabel.BackgroundTransparency = 1
 TimerLabel.Position = UDim2.new(0.1, 0, 0.8, 0)
@@ -240,43 +244,43 @@ TimerLabel.TextXAlignment = Enum.TextXAlignment.Left
 local locations = {
     ["001"] = {
         pos = Vector3.new(296.316803, 159.072876, -11522.4131),
-        lookAt = Vector3.new(300, 155, -11520)
+        lookAt = Vector3.new(360, 120, -11540)
     },
     ["067"] = {
         pos = Vector3.new(295.025452, 165.388184, -11722.3301),
-        lookAt = Vector3.new(305, 165, -11720)
+        lookAt = Vector3.new(325, 160, -11720)
     },
     ["121"] = {
         pos = Vector3.new(-26.0332146, 191.472733, -11693.6689),
-        lookAt = Vector3.new(-26, 191, -11693)
+        lookAt = Vector3.new(-26, 190, -11693)
     },
     ["196"] = {
         pos = Vector3.new(175.701904, 164.136642, -11447.8867),
-        lookAt = Vector3.new(172, 164, -11447)
+        lookAt = Vector3.new(169, 162.5, -11447)
     },
     ["236"] = {
         pos = Vector3.new(140.66275, 144.121475, -11595.6582),
-        lookAt = Vector3.new(139, 144, -11598)
+        lookAt = Vector3.new(140.5, 145.6, -11598)
     },
     ["448"] = {
         pos = Vector3.new(230.88028, 143.14624, -11464.6211),
-        lookAt = Vector3.new(240, 145, -11460)
+        lookAt = Vector3.new(250, 138, -11460)
     },
     ["510"] = {
         pos = Vector3.new(125.347725, 146.448792, -11497.8359),
-        lookAt = Vector3.new(130, 146, -11490)
+        lookAt = Vector3.new(125, 143, -11490)
     },
     ["666"] = {
-        pos = Vector3.new(-12.9422302, 146.029175, -11462.0928),
-        lookAt = Vector3.new(-5, 148, -11455)
+        pos = Vector3.new(-12.9422302, 147.029175, -11465.0928),
+        lookAt = Vector3.new(-10, 140, -11455)
     },
     ["777"] = {
         pos = Vector3.new(262.181244, 163.790955, -11566.8945),
         lookAt = Vector3.new(270, 163, -115690)
     },
     ["974"] = {
-        pos = Vector3.new(202.607376, 145.277557, -11584.8613),
-        lookAt = Vector3.new(210, 145, -11580)
+        pos = Vector3.new(200.607376, 145.277557, -11584.8613),
+        lookAt = Vector3.new(230, 130, -11600)
     }
 }
 
@@ -293,7 +297,9 @@ function updateTimer(seconds)
     if isRunning then
         TimerLabel.Text = "Wait: 0s"
     end
-endfunction startAutoTeleport()
+end
+
+function startAutoTeleport()
     if isRunning then return end
     
     isRunning = true
