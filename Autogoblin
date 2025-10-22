@@ -1,0 +1,122 @@
+function completeQuest(questName)
+    local questData = nil
+    for _, quest in ipairs(quests) do
+        if quest.ID == questName then
+            questData = quest
+            break
+        end
+    end
+    
+    if not questData then
+        warn("Quest not found: " .. tostring(questName))
+        return false
+    end
+    
+    warn("Starting quest completion: " .. questName)
+    
+    if questName == "Jump 50 Times" then
+        -- Прыжки 50 раз
+        local humanoid = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            for i = 1, 50 do
+                humanoid.Jump = true
+                wait(0.1)
+            end
+        end
+        
+    elseif questName == "Walk 1000 Studs" then
+        -- Ходьба 1000 стадов
+        local humanoid = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            -- Двигаемся вперед-назад для накопления дистанции
+            local startTime = tick()
+            while tick() - startTime < 30 do -- Максимум 30 секунд на выполнение
+                humanoid:Move(Vector3.new(10, 0, 0))
+                wait(0.1)
+                humanoid:Move(Vector3.new(-10, 0, 0))
+                wait(0.1)
+            end
+        end
+        
+    elseif questName == "Move around Spiratically!" then
+        -- Хаотичное движение
+        local humanoid = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local startTime = tick()
+            local directions = {
+                Vector3.new(10, 0, 0),
+                Vector3.new(-10, 0, 0),
+                Vector3.new(0, 0, 10),
+                Vector3.new(0, 0, -10),
+                Vector3.new(7, 0, 7),
+                Vector3.new(-7, 0, -7)
+            }
+            
+            while tick() - startTime < 20 do -- Максимум 20 секунд
+                local randomDir = directions[math.random(1, #directions)]
+                humanoid:Move(randomDir)
+                wait(0.2)
+            end
+        end
+        
+    elseif questName == "Climb 50 Studs Upward" then
+        -- ПРОПУСКАЕМ этот квест - сразу возвращаем true
+        warn("Skipping Climb 50 Studs Upward quest - returning to goblin immediately")
+        return true
+        
+    elseif questName == "Fall 15 Studs" then
+        -- Падение с 15 стадов
+        local rootPart = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            local startY = rootPart.Position.Y
+            
+            -- Телепортируемся повыше для падения
+            local highPosition = rootPart.Position + Vector3.new(0, 20, 0)
+            rootPart.CFrame = CFrame.new(highPosition)
+            
+            -- Ждем пока упадет достаточно
+            wait(3)
+        end
+        
+    elseif questName == "Stand Still for 30 Seconds" then
+        -- Стоять на месте 30 секунд
+        warn("Standing still for 30 seconds...")
+        wait(30)
+        warn("30 seconds passed!")
+        
+    elseif questName == "Jump from a High Peak" then
+        -- Прыжок с высокой точки
+        local rootPart = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+        local humanoid = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+        
+        if rootPart and humanoid then
+            -- Создаем высокую платформу для прыжка
+            local platform = Instance.new("Part")
+            platform.Name = "JumpPlatform"
+            platform.Size = Vector3.new(10, 2, 10)
+            platform.Position = rootPart.Position + Vector3.new(0, 100, 0)
+            platform.Anchored = true
+            platform.CanCollide = true
+            platform.Material = Enum.Material.Concrete
+            platform.BrickColor = BrickColor.new("Dark stone grey")
+            platform.Parent = workspace
+            
+            -- Телепортируемся на платформу
+            rootPart.CFrame = CFrame.new(platform.Position + Vector3.new(0, 5, 0))
+            
+            wait(1) -- Даем время для стабилизации
+            
+            warn("Jumping from high platform!")
+            
+            -- Прыгаем
+            humanoid.Jump = true
+            wait(5) -- Ждем падения
+            
+            -- Удаляем платформу
+            platform:Destroy()
+        end
+    end
+    
+    warn("Quest completed: " .. questName)
+    return true
+end
