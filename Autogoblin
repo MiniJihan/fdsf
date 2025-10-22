@@ -1,3 +1,81 @@
+local plr = game:GetService("Players").LocalPlayer
+local tween_s = game:GetService("TweenService")
+local info = TweenInfo.new(5, Enum.EasingStyle.Quad)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Список квестов
+local quests = {
+    {ID = "Jump 50 Times", ProgressValue = 0, GoalValue = 50, Started = false, RewardClaimed = false},
+    {ID = "Walk 1000 Studs", ProgressValue = 0, GoalValue = 1000, Started = false, RewardClaimed = false},
+    {ID = "Move around Spiratically!", ProgressValue = 0, GoalValue = 500, Started = false, RewardClaimed = false},
+    {ID = "Climb 50 Studs Upward", ProgressValue = 0, GoalValue = 50, Started = false, RewardClaimed = false},
+    {ID = "Fall 15 Studs", ProgressValue = 0, GoalValue = 15, Started = false, RewardClaimed = false},
+    {ID = "Stand Still for 30 Seconds", ProgressValue = 0, GoalValue = 30, Started = false, RewardClaimed = false},
+    {ID = "Jump from a High Peak", ProgressValue = 0, GoalValue = 1, Started = false, RewardClaimed = false}
+}
+
+function findTargetObject()
+    for i = 1, 16 do
+        local targetName = tostring(i)
+        local targetObject = workspace:FindFirstChild(targetName)
+        
+        if targetObject then
+            return targetObject, targetName
+        end
+    end
+    return nil, nil
+end
+
+function activateTargetPrompt(targetNumber)
+    local promptPath = workspace[tostring(targetNumber)]
+    if promptPath then
+        local prompt = promptPath:FindFirstChild("ProximityPrompt")
+        if prompt and prompt:IsA("ProximityPrompt") then
+            -- Активируем проксимити промпт
+            prompt:InputHoldBegin()
+            wait(0.1)
+            prompt:InputHoldEnd()
+            return true
+        else
+            warn("ProximityPrompt not found in object '" .. targetNumber .. "'")
+        end
+    else
+        warn("Object '" .. targetNumber .. "' not found for prompt activation")
+    end
+    return false
+end
+
+function activateDialogViaRemote(targetNumber)
+    local success = pcall(function()
+        game:GetService("ReplicatedStorage").packages.Net["RF/DialogInteract"]:InvokeServer(1,1)
+    end)
+    
+    if success then
+        warn("DialogInteract RemoteFunction invoked successfully")
+    else
+        warn("Failed to invoke DialogInteract RemoteFunction")
+    end
+    
+    return success
+end
+
+function getCurrentQuest(targetNumber)
+    local targetObject = workspace[tostring(targetNumber)]
+    if targetObject then
+        local rootPart = targetObject:FindFirstChild("RootPart")
+        if rootPart then
+            local goblinQuest = rootPart:FindFirstChild("GoblinQuest")
+            if goblinQuest then
+                local questName = goblinQuest:FindFirstChild("QuestName")
+                if questName and questName:IsA("TextLabel") then
+                    return questName.Text -- Исправлено: читаем Text вместо Value
+                end
+            end
+        end
+    end
+    return nil
+end
+
 function completeQuest(questName)
     local questData = nil
     for _, quest in ipairs(quests) do
@@ -120,3 +198,383 @@ function completeQuest(questName)
     warn("Quest completed: " .. questName)
     return true
 end
+
+function returnToGoblin(targetNumber)
+    local targetObject = workspace[tostring(targetNumber)]
+    
+    if not targetObject then
+        warn("Target object '" .. targetNumber .. "' not found for return teleport")
+        return false
+    end
+    
+    if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+        warn("Character not found for return teleport")
+        return false
+    end
+    
+    -- Получаем позицию объекта
+    local targetPos
+    if targetObject:IsA("Model") and targetObject.PrimaryPart then
+        targetPos = targetObject.PrimaryPart.Position
+    elseif targetObject:IsA("BasePart") then
+        targetPos = targetObject.Position
+    else
+        local part = targetObject:FindFirstChildWhichIsA("BasePart")
+        if part then
+            targetPos = part.Position
+        else
+            warn("Cannot find position for return to object '" .. targetNumber .. "'")
+            return false
+        end
+    end
+    
+    -- Добавляем 2 стада по высоте
+    local teleportPos = Vector3.new(targetPos.X, targetPos.Y + 2, targetPos.Z)
+    local lookAtPos = teleportPos + Vector3.new(10, 0, 0)
+    local cframe = CFrame.new(teleportPos, lookAtPos)
+    
+    local success, errorMsg = pcall(function()
+        local tween = tween_s:Create(plr.Character.HumanoidRootPart, info, {CFrame = cframe})
+        tween:Play()
+        tween.Completed:Wait()
+    end)
+    
+    if not success then
+        warn("Return teleport error: " .. tostring(errorMsg))
+        return false
+    end
+    
+    return true
+end
+
+function findAndClickDialog(targetNumber)
+    -- Используем RemoteFunction для активации диалога
+    local remoteSuccess = activateDialogViaRemote(targetNumber)
+    if remoteSuccess then
+        warn("Dialog remote activated for object '" .. targetNumber .. "'")
+        
+        -- Ждем появления квеста и получаем его название
+        wait(3) -- Увеличиваем время ожидания для появления квеста
+        local currentQuest = getCurrentQuest(targetNumber)
+        
+        if currentQuest and currentQuest ~= "" then
+            warn("Current quest: " .. currentQuest)
+            
+            -- Выполняем квест
+            local questCompleted = completeQuest(currentQuest)
+            if questCompleted then
+                warn("Successfully completed quest: " .. currentQuest)
+                
+                -- Ждем немного после выполнения квеста
+                wait(2)
+                
+                -- Для квеста "Stand Still for 30 Seconds" не телепортируемся обратно
+                if currentQuest == "Stand Still for 30 Seconds" then
+                    warn("Stand Still quest - skipping return teleport, activating prompt directly")
+                    
+                    -- Сразу нажимаем E для получения награды
+                    local promptActivated = activateTargetPrompt(targetNumber)
+                    if promptActivated then
+                        warn("Successfully activated ProximityPrompt for reward collection")
+                        
+                        -- Ждем появления диалога награды
+                        wait(1)
+                        
+                        -- Снова вызываем RemoteFunction для завершения квеста
+                        local rewardSuccess = activateDialogViaRemote(targetNumber)
+                        if rewardSuccess then
+                            warn("Reward collected successfully via RemoteFunction")
+                        else
+                            warn("Failed to collect reward via RemoteFunction")
+                        end
+                    else
+                        warn("Failed to activate ProximityPrompt for reward collection")
+                    end
+                else
+                    -- Для всех остальных квестов - ПОВТОРНЫЙ ТЕЛЕПОРТ к гоблину для получения награды
+                    warn("Returning to goblin for reward collection...")
+                    local returnSuccess = returnToGoblin(targetNumber)
+                    
+                    if returnSuccess then
+                        warn("Successfully returned to goblin")
+                        
+                        -- Ждем немного после телепорта
+                        wait(1)
+                        
+                        -- Снова нажимаем E на том же объекте для получения награды
+                        local promptActivated = activateTargetPrompt(targetNumber)
+                        if promptActivated then
+                            warn("Successfully activated ProximityPrompt for reward collection")
+                            
+                            -- Ждем появления диалога награды
+                            wait(1)
+                            
+                            -- Снова вызываем RemoteFunction для завершения квеста
+                            local rewardSuccess = activateDialogViaRemote(targetNumber)
+                            if rewardSuccess then
+                                warn("Reward collected successfully via RemoteFunction")
+                            else
+                                warn("Failed to collect reward via RemoteFunction")
+                            end
+                        else
+                            warn("Failed to activate ProximityPrompt for reward collection")
+                        end
+                    else
+                        warn("Failed to return to goblin for reward collection")
+                    end
+                end
+            else
+                warn("Failed to complete quest: " .. currentQuest)
+            end
+        else
+            -- Добавляем отладочную информацию
+            warn("No active quest found for object '" .. targetNumber .. "'")
+            warn("Debug: Checking path workspace." .. targetNumber .. ".RootPart.GoblinQuest.QuestName")
+            
+            -- Проверяем существование всех частей пути
+            local targetObject = workspace[tostring(targetNumber)]
+            if targetObject then
+                local rootPart = targetObject:FindFirstChild("RootPart")
+                if rootPart then
+                    local goblinQuest = rootPart:FindFirstChild("GoblinQuest")
+                    if goblinQuest then
+                        local questName = goblinQuest:FindFirstChild("QuestName")
+                        if questName then
+                            warn("QuestName found, type: " .. questName.ClassName .. ", text: '" .. tostring(questName.Text) .. "'")
+                        else
+                            warn("QuestName not found in GoblinQuest")
+                        end
+                    else
+                        warn("GoblinQuest not found in RootPart")
+                    end
+                else
+                    warn("RootPart not found in object " .. targetNumber)
+                end
+            else
+                warn("Object " .. targetNumber .. " not found in workspace")
+            end
+        end
+        
+        return true
+    else
+        warn("Failed to activate dialog via remote for object '" .. targetNumber .. "'")
+        return false
+    end
+end
+
+function tpToObject()
+    local targetObject, targetName = findTargetObject()
+    
+    if not targetObject then
+        warn("No target objects found (1-16)")
+        return false
+    end
+    
+    if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+        warn("Character not found")
+        return false
+    end
+    
+    -- Получаем позицию объекта
+    local targetPos
+    if targetObject:IsA("Model") and targetObject.PrimaryPart then
+        targetPos = targetObject.PrimaryPart.Position
+    elseif targetObject:IsA("BasePart") then
+        targetPos = targetObject.Position
+    else
+        local part = targetObject:FindFirstChildWhichIsA("BasePart")
+        if part then
+            targetPos = part.Position
+        else
+            warn("Cannot find position for object '" .. targetName .. "'")
+            return false
+        end
+    end
+    
+    -- Добавляем 2 стада по высоте
+    local teleportPos = Vector3.new(targetPos.X, targetPos.Y + 2, targetPos.Z)
+    local lookAtPos = teleportPos + Vector3.new(10, 0, 0)
+    local cframe = CFrame.new(teleportPos, lookAtPos)
+    
+    local success, errorMsg = pcall(function()
+        local tween = tween_s:Create(plr.Character.HumanoidRootPart, info, {CFrame = cframe})
+        tween:Play()
+        tween.Completed:Wait()
+        
+        -- После завершения твина активируем ProximityPrompt с тем же номером
+        wait(0.5)
+        local promptActivated = activateTargetPrompt(targetName)
+        
+        if promptActivated then
+            warn("Successfully activated ProximityPrompt in object '" .. targetName .. "'")
+            
+            -- Ждем появления диалога и нажимаем на него через RemoteFunction
+            wait(1)
+            local dialogClicked = findAndClickDialog(targetName)
+            
+            if dialogClicked then
+                warn("Dialog and quest activated successfully in object '" .. targetName .. "'")
+            else
+                warn("Failed to activate dialog in object '" .. targetName .. "'")
+            end
+        else
+            warn("Failed to activate ProximityPrompt in object '" .. targetName .. "'")
+        end
+    end)
+    
+    if not success then
+        warn("Teleport error: " .. tostring(errorMsg))
+        return false
+    end
+    
+    return true, targetName
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local UICorner = Instance.new("UICorner")
+local TitleBar = Instance.new("Frame")
+local TitleCorner = Instance.new("UICorner")
+local Title = Instance.new("TextLabel")
+local CloseButton = Instance.new("TextButton")
+local ContentFrame = Instance.new("Frame")
+local ToggleButton = Instance.new("TextButton")
+local ToggleCorner = Instance.new("UICorner")
+local StatusLabel = Instance.new("TextLabel")
+
+ScreenGui.Name = "TeleportGUI"
+ScreenGui.Parent = plr:WaitForChild("PlayerGui")
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.02, 0, 0.02, 0)
+MainFrame.Size = UDim2.new(0, 220, 0, 120)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+UICorner.CornerRadius = UDim.new(0, 15)
+UICorner.Parent = MainFrame
+
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+TitleBar.BorderSizePixel = 0
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.ZIndex = 2
+TitleBar.Active = false
+TitleBar.Draggable = false
+
+TitleCorner.CornerRadius = UDim.new(0, 15)
+TitleCorner.Parent = TitleBar
+
+Title.Name = "Title"
+Title.Parent = TitleBar
+Title.BackgroundTransparency = 1
+Title.BorderSizePixel = 0
+Title.Size = UDim2.new(0.7, 0, 1, 0)
+Title.Position = UDim2.new(0.05, 0, 0, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "Teleport to Object"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = TitleBar
+CloseButton.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+CloseButton.BorderSizePixel = 0
+CloseButton.Position = UDim2.new(0.85, 0, 0.15, 0)
+CloseButton.Size = UDim2.new(0, 20, 0, 20)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 12
+CloseButton.ZIndex = 3
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 5)
+CloseCorner.Parent = CloseButton
+
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Parent = MainFrame
+ContentFrame.Position = UDim2.new(0, 0, 0, 35)
+ContentFrame.Size = UDim2.new(1, 0, 1, -35)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Active = true
+ContentFrame.Draggable = false
+
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Parent = ContentFrame
+ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Position = UDim2.new(0.1, 0, 0.2, 0)
+ToggleButton.Size = UDim2.new(0.8, 0, 0, 40)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "TELEPORT"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 16
+ToggleButton.AutoButtonColor = true
+
+ToggleCorner.CornerRadius = UDim.new(0, 8)
+ToggleCorner.Parent = ToggleButton
+
+StatusLabel.Name = "StatusLabel"
+StatusLabel.Parent = ContentFrame
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0.1, 0, 0.7, 0)
+StatusLabel.Size = UDim2.new(0.8, 0, 0, 20)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "Status: Ready"
+StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusLabel.TextSize = 12
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+ToggleButton.MouseButton1Click:Connect(function()
+    StatusLabel.Text = "Status: Teleporting..."
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 193, 7)
+    
+    local success, targetName = tpToObject()
+    
+    if success then
+        StatusLabel.Text = "Status: Success! (" .. targetName .. ")"
+        StatusLabel.TextColor3 = Color3.fromRGB(144, 238, 144)
+    else
+        StatusLabel.Text = "Status: Failed"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+    
+    wait(2)
+    StatusLabel.Text = "Status: Ready"
+    StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+end)
+
+ToggleButton.MouseEnter:Connect(function()
+    game:GetService("TweenService"):Create(ToggleButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(80, 80, 100)}):Play()
+end)
+
+ToggleButton.MouseLeave:Connect(function()
+    game:GetService("TweenService"):Create(ToggleButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 80)}):Play()
+end)
+
+CloseButton.MouseEnter:Connect(function()
+    game:GetService("TweenService"):Create(CloseButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(240, 70, 80)}):Play()
+end)
+
+CloseButton.MouseLeave:Connect(function()
+    game:GetService("TweenService"):Create(CloseButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(220, 53, 69)}):Play()
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+TitleBar.Active = false
+TitleBar.Draggable = false
+ContentFrame.Active = false
+ContentFrame.Draggable = false
+
+MainFrame.Active = true
+MainFrame.Draggable = true
